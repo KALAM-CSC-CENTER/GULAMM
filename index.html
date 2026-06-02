@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KALAM PHOTO & AADHAR EDITOR PRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <style>
+        :root { --primary: #2563eb; --bg: #f1f5f9; --text: #1e293b; --aadhar-accent: #ff9933; --success: #10b981; }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 20px; 
+            overflow-x: hidden;
+        }
+
+        .bg-scrolling-container { position: fixed; top: 50%; left: 0; width: 100%; transform: translateY(-50%); z-index: -1; pointer-events: none; opacity: 0.15; }
+        .scrolling-text { font-size: 10vw; font-weight: 900; white-space: nowrap; text-transform: uppercase; color: #000; display: inline-block; animation: slowScroll 25s linear infinite; }
+        @keyframes slowScroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+
+        .corner-brand { position: fixed; bottom: 20px; right: 20px; background: #000; color: white; padding: 12px 24px; border-radius: 50px; font-size: 14px; font-weight: 800; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: center; gap: 10px; border: 2px solid rgba(255,255,255,0.1); }
+
+        .card { 
+            background: rgba(255, 255, 255, 0.97); 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
+            max-width: 500px; 
+            margin: auto; 
+            text-align: center; 
+            position: relative; 
+            z-index: 10;
+            border-top: 6px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .card.aadhar-mode { border-top-color: var(--aadhar-accent); }
+
+        header h2 { margin: 0 0 20px; color: var(--primary); font-weight: 900; }
+        .aadhar-mode header h2 { color: var(--aadhar-accent); }
+        
+        label { display: block; text-align: left; font-size: 13px; font-weight: 600; margin: 10px 0 5px; color: #64748b; }
+        input, select, button { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 14px; margin-bottom: 5px; }
+        
+        button.main-btn { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 15px; transition: 0.3s; }
+        .aadhar-mode button.main-btn { background: var(--aadhar-accent); }
+        button.main-btn:hover { opacity: 0.9; transform: translateY(-2px); }
+        
+        .adjust-btn { background: var(--primary); color: white; border: none; margin-top: 10px; cursor: pointer; display: none; font-weight: 600; transition: 0.3s; }
+        .adjust-btn:hover { opacity: 0.9; }
+
+        .upload-row-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .upload-row-box input[type="file"] {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .append-indicator-toggle {
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 45px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+        .append-indicator-toggle::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 15%;
+            height: 70%;
+            width: 2px;
+            background-color: #cbd5e1;
+        }
+        .append-indicator-toggle .status-dot {
+            width: 12px;
+            height: 12px;
+            background-color: #dc2626; 
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+        .append-indicator-toggle.active {
+            background-color: #f0fdf4;
+            border-color: var(--success);
+        }
+        .append-indicator-toggle.active .status-dot {
+            background-color: var(--success); 
+        }
+
+        #editor-section { display: none; margin-top: 15px; border: 2px dashed #cbd5e1; padding: 10px; border-radius: 8px; }
+        .cropper-box { width: 100%; height: 280px; background: #000; overflow: hidden; }
+        
+        .tool-btn { padding: 8px; background: #f1f5f9; border: 1px solid #ccc; cursor: pointer; border-radius: 4px; width: auto; flex: 1; }
+        .input-group-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        canvas { max-width: 100%; height: auto; border: 1px solid #ccc; margin-top: 20px; background: #fff; display: none; margin-left: auto; margin-right: auto; box-shadow: 0 0 20px rgba(0,0,0,0.1); image-rendering: high-quality; }
+        
+        @media print {
+            @page { size: A4; margin: 0; }
+            body * { display: none !important; }
+            canvas { display: block !important; position: fixed; top: 0; left: 0; width: 100% !important; border: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-scrolling-container">
+    <div class="scrolling-text">KALAM JAN SEVA KENDRA &nbsp;&nbsp;•&nbsp;&nbsp; KALAM JAN SEVA KENDRA</div>
+</div>
+
+<div class="corner-brand"><i class="fa fa-university"></i> KALAM JAN SEVA KENDRA</div>
+
+<div class="card" id="mainCard">
+    <header><h2 id="headerTitle">KALAM PHOTO EDITOR</h2></header>
+
+    <label>Work Mode Select Karein</label>
+    <select id="workMode" onchange="toggleMode()">
+        <option value="passport" selected>Passport Photo Mode (All Sizes)</option>
+        <option value="aadhar">Aadhar Card Mode (Smart Crop)</option>
+    </select>
+    
+    <label id="uploadLabel">Step 1: Upload Photo</label>
+    <div class="upload-row-box">
+        <input type="file" id="upload" accept="image/*,application/pdf">
+        <div class="append-indicator-toggle" id="appendIndicator" onclick="toggleAppendState()">
+            <div class="status-dot"></div>
+        </div>
+    </div>
+
+    <button id="show-adjuster" class="adjust-btn" onclick="toggleAdjuster()"><i class="fa fa-crop"></i> Adjust Photo</button>
+
+    <div id="editor-section">
+        <div class="cropper-box"><img id="image-preview"></div>
+        <div style="display: flex; gap: 5px; margin-top: 10px;">
+            <button class="tool-btn" onclick="zoom(0.1)"><i class="fa fa-plus"></i></button>
+            <button class="tool-btn" onclick="zoom(-0.1)"><i class="fa fa-minus"></i></button>
+            <button class="tool-btn" onclick="rotate(-90)"><i class="fa fa-rotate-left"></i></button>
+            <button class="tool-btn" onclick="rotate(90)"><i class="fa fa-rotate-right"></i></button>
+        </div>
+    </div>
+    
+    <div id="passportSettings">
+        <label>Step 2: Photos per Row</label>
+        <select id="cols">
+            <option value="1">1 Photo</option>
+            <option value="2">2 Photos</option>
+            <option value="4">4 Photos</option>
+            <option value="6" selected>6 Photos</option>
+        </select>
+
+        <div class="input-group-row">
+            <div><label>Step 3: Total Photos</label><input type="number" id="qty" value="6"></div>
+            <div><label>Gap (px)</label><input type="number" id="gap" value="20"></div>
+        </div>
+
+        <label>Step 4: Select Photo Size</label>
+        <select id="photo-size" onchange="updateCropRatio()">
+            <option value="380,480">Passport Size (3.5 x 4.5 cm)</option>
+            <option value="1181,1772">Postcard Size (4 x 6 in)</option>
+            <option value="637,1011">ID Card Photo (5.4 x 8.6 cm)</option>
+            <option value="2480,3508">A4 Full Size Photo</option>
+            <option value="236,295">Stamp Size (2 x 2.5 cm)</option>
+            <option value="413,413">Visa Photo (3.5 x 3.5 cm)</option>
+            <option value="1417,2126">Cabinet Size (12 x 18 cm)</option>
+        </select>
+    </div>
+
+    <button class="main-btn" onclick="generateSheet()">Generate Sheet</button>
+    <button id="print-btn" class="main-btn" style="display: none; background: var(--success);" onclick="downloadAndPrint()">Download & Print HD</button>
+</div>
+
+<canvas id="canvas" width="2480" height="3508"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+<script>
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    let cropper;
+    let isAdjusting = false;
+    let originalImageSrc = null; 
+    let lastCroppedImage = null;
+
+    let currentXPosition = 50; 
+    let currentYPosition = 50;
+    let totalItemsPrintedOnSheet = 0;
+    let isCanvasInitialized = false;
+    let isAppendActive = false; 
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const imagePreview = document.getElementById('image-preview');
+    const uploadInput = document.getElementById('upload');
+    const adjustBtn = document.getElementById('show-adjuster');
+    const editorSection = document.getElementById('editor-section');
+    const appendIndicator = document.getElementById('appendIndicator');
+
+    function toggleMode() {
+        const mode = document.getElementById('workMode').value;
+        const card = document.getElementById('mainCard');
+        const headerTitle = document.getElementById('headerTitle');
+        const passportSettings = document.getElementById('passportSettings');
+        const uploadLabel = document.getElementById('uploadLabel');
+
+        if (mode === 'aadhar') {
+            card.classList.add('aadhar-mode');
+            headerTitle.innerText = "KALAM AADHAR EDITOR";
+            passportSettings.style.display = 'none';
+            uploadLabel.innerText = "Step 1: Upload Aadhar Image/PDF";
+        } else {
+            card.classList.remove('aadhar-mode');
+            headerTitle.innerText = "KALAM PHOTO EDITOR";
+            passportSettings.style.display = 'block';
+            uploadLabel.innerText = "Step 1: Upload Photo";
+        }
+        
+        appendIndicator.style.display = 'none';
+        isAppendActive = false;
+        appendIndicator.classList.remove('active');
+        resetCanvasTracking();
+        resetEditor();
+    }
+
+    function resetEditor() {
+        if (cropper) { cropper.destroy(); cropper = null; }
+        isAdjusting = false;
+        editorSection.style.display = 'none';
+        adjustBtn.style.display = 'none';
+        adjustBtn.innerHTML = "<i class='fa fa-crop'></i> Adjust Photo";
+        originalImageSrc = null;
+        lastCroppedImage = null;
+        uploadInput.value = "";
+    }
+
+    function resetCanvasTracking() {
+        currentXPosition = 50;
+        currentYPosition = 50;
+        totalItemsPrintedOnSheet = 0;
+        isCanvasInitialized = false;
+    }
+
+    function toggleAppendState() {
+        if (!isCanvasInitialized) return; 
+        isAppendActive = !isAppendActive;
+        if (isAppendActive) {
+            appendIndicator.classList.add('active');
+        } else {
+            appendIndicator.classList.remove('active');
+        }
+    }
+
+    function updateCropRatio() {
+        if (cropper && document.getElementById('workMode').value === 'passport') {
+            const sizeData = document.getElementById("photo-size").value.split(',');
+            cropper.setAspectRatio(parseFloat(sizeData[0]) / parseFloat(sizeData[1]));
+        }
+    }
+
+    uploadInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (cropper) { cropper.destroy(); cropper = null; }
+        isAdjusting = false;
+        editorSection.style.display = 'none';
+        adjustBtn.style.display = 'none';
+        adjustBtn.innerHTML = "<i class='fa fa-crop'></i> Adjust Photo";
+        lastCroppedImage = null;
+
+        if (file.type === "application/pdf") {
+            const password = prompt("Enter PDF Password (if any):");
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const typedarray = new Uint8Array(this.result);
+                try {
+                    const pdf = await pdfjsLib.getDocument({ data: typedarray, password: password }).promise;
+                    const page = await pdf.getPage(1);
+                    // EXTREME HIGH QUALITY PDF EXTRACTION
+                    const viewport = page.getViewport({ scale: 6.0 }); 
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.height = viewport.height;
+                    tempCanvas.width = viewport.width;
+
+                    await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
+                    
+                    if(document.getElementById('workMode').value === 'aadhar') {
+                        const cropW = tempCanvas.width;
+                        const cropH = tempCanvas.height * 0.32; 
+                        const cropY = tempCanvas.height - cropH - (tempCanvas.height * 0.04); 
+                        const finalCrop = document.createElement('canvas');
+                        finalCrop.width = cropW; finalCrop.height = cropH;
+                        finalCrop.getContext('2d').drawImage(tempCanvas, 0, cropY, cropW, cropH, 0, 0, cropW, cropH);
+                        originalImageSrc = finalCrop.toDataURL('image/png', 1.0);
+                    } else {
+                        originalImageSrc = tempCanvas.toDataURL('image/png', 1.0);
+                    }
+                    imagePreview.src = originalImageSrc;
+                    adjustBtn.style.display = 'block';
+                } catch (err) { alert("PDF Error! Password galat ho sakta hai."); }
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            originalImageSrc = URL.createObjectURL(file);
+            imagePreview.src = originalImageSrc;
+            adjustBtn.style.display = 'block';
+        }
+    });
+
+    function toggleAdjuster() {
+        const mode = document.getElementById('workMode').value;
+        if (!isAdjusting) {
+            isAdjusting = true;
+            editorSection.style.display = 'block';
+            imagePreview.style.display = 'block';
+            
+            if (originalImageSrc) {
+                imagePreview.src = originalImageSrc;
+            }
+            
+            let ratio = mode === 'aadhar' ? 17.5 / 5.5 : parseFloat(document.getElementById("photo-size").value.split(',')[0]) / parseFloat(document.getElementById("photo-size").value.split(',')[1]);
+
+            cropper = new Cropper(imagePreview, { 
+                aspectRatio: ratio, 
+                viewMode: 1,
+                autoCropArea: 1
+            });
+            adjustBtn.innerHTML = "<i class='fa fa-check'></i> Apply Crop";
+        } else {
+            if (cropper) { 
+                // ULTRA HD CROP EXTRACTION FOR NO PIXELATION
+                lastCroppedImage = cropper.getCroppedCanvas({ 
+                    width: 3600, 
+                    imageSmoothingEnabled: true,
+                    imageSmoothingQuality: 'high' 
+                }); 
+                imagePreview.src = lastCroppedImage.toDataURL('image/png', 1.0);
+                cropper.destroy(); cropper = null; 
+            }
+            isAdjusting = false;
+            editorSection.style.display = 'none';
+            adjustBtn.innerHTML = "<i class='fa fa-crop'></i> Adjust Photo";
+        }
+    }
+
+    function zoom(v) { if(cropper) cropper.zoom(v); }
+    function rotate(d) { if(cropper) cropper.rotate(d); }
+
+    function generateSheet() {
+        if (!imagePreview.src) { alert("Pehle photo upload karein!"); return; }
+        
+        const mode = document.getElementById('workMode').value;
+        const sizeValue = document.getElementById("photo-size").value;
+        const PPI = 300;
+        const CM_TO_PX = PPI / 2.54;
+        
+        let targetW, targetH, cols, qty, gap;
+        let isA4FullSize = (sizeValue === "2480,3508" && mode !== 'aadhar');
+
+        if (mode === 'aadhar') {
+            targetW = 17.5 * CM_TO_PX; 
+            targetH = 5.5 * CM_TO_PX;
+            cols = 1; qty = 1; gap = 40;
+        } else {
+            const sizeData = sizeValue.split(',');
+            targetW = parseInt(sizeData[0]);
+            targetH = parseInt(sizeData[1]);
+            cols = parseInt(document.getElementById("cols").value);
+            qty = isA4FullSize ? 1 : parseInt(document.getElementById("qty").value);
+            gap = isA4FullSize ? 0 : parseInt(document.getElementById("gap").value);
+        }
+
+        let leftMarginStartX = isA4FullSize ? 0 : 50; 
+
+        if (!isAppendActive || !isCanvasInitialized) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            currentXPosition = leftMarginStartX;
+            currentYPosition = isA4FullSize ? 0 : 50;
+            totalItemsPrintedOnSheet = 0;
+            isCanvasInitialized = true;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+            // STRICT ANTI-PIXELATION FOR CANVAS RENDER
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            for (let i = 0; i < qty; i++) {
+                if (currentXPosition + targetW > canvas.width - 20 && mode !== 'aadhar' && !isA4FullSize) {
+                    currentXPosition = leftMarginStartX;
+                    currentYPosition += targetH + gap;
+                }
+
+                ctx.save();
+                // UPGRADED FILTER: Light kam (1.02), Glow & Smoothness ke liye balanced contrast/saturation
+                ctx.filter = "brightness(1.05) contrast(1.08) saturate(1.15)";
+                ctx.drawImage(img, currentXPosition, currentYPosition, targetW, targetH);
+                ctx.restore();
+                
+                // Outer black border layout mapping
+                ctx.save();
+                ctx.strokeStyle = "#000000"; 
+                ctx.lineWidth = isA4FullSize ? 1 : 2;
+                ctx.strokeRect(currentXPosition, currentYPosition, targetW, targetH);
+                ctx.restore();
+
+                if (mode === 'aadhar') {
+                    currentYPosition += targetH + gap;
+                } else if (isA4FullSize) {
+                    currentXPosition += targetW;
+                } else {
+                    currentXPosition += targetW + gap;
+                    totalItemsPrintedOnSheet++;
+                    
+                    if (totalItemsPrintedOnSheet % cols === 0 && i < qty - 1) { 
+                        currentXPosition = leftMarginStartX; 
+                        currentYPosition += targetH + gap; 
+                    }
+                }
+            }
+
+            canvas.style.display = 'block';
+            document.getElementById('print-btn').style.display = 'block';
+            canvas.scrollIntoView({ behavior: 'smooth' });
+
+            appendIndicator.style.display = 'flex';
+        };
+        img.src = lastCroppedImage ? lastCroppedImage.toDataURL('image/png', 1.0) : imagePreview.src;
+    }
+
+    function downloadAndPrint() {
+        const link = document.createElement('a');
+        link.download = 'Kalam_HD_Print.png';
+        link.href = canvas.toDataURL("image/png", 1.0); 
+        link.click();
+        setTimeout(() => { window.print(); }, 500);
+    }
+</script>
+</body>
+</html>
